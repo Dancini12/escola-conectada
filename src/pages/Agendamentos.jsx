@@ -6,6 +6,12 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import {
+  fetchOccupiedBookings,
+  isBookingConflictError,
+  isPastSlot,
+  overlapsBooking,
+} from '../lib/bookingAvailability'
 
 // ─── Constants ───────────────────────────────────────────────
 const DEMO_RECURSOS = [
@@ -99,22 +105,35 @@ export default function Agendamentos() {
     })
   }, [])
 
+  const fetchOcupados = async () => {
+    if (!selectedDate || !selectedRecurso || !isSupabaseConfigured()) {
+      setOcupados([])
+      return []
+    }
+
+    try {
+      const bookings = await fetchOccupiedBookings(selectedRecurso.id, fmtDate(selectedDate))
+      setOcupados(bookings)
+      return bookings
+    } catch {
+      setOcupados([])
+      return []
+    }
+  }
+
   // ── Fetch ocupados when resource or date changes ──
   useEffect(() => {
-    if (!selectedDate || !selectedRecurso) return
-    if (!isSupabaseConfigured()) {
-      setOcupados([])
-      setDisponivel(selectedRecurso.quantidade_total)
-      return
+    fetchOcupados()
+    if (!selectedDate || !selectedRecurso || !isSupabaseConfigured()) return
+
+    const intervalId = window.setInterval(fetchOcupados, 5000)
+    const handleFocus = () => fetchOcupados()
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', handleFocus)
     }
-    const dateStr = fmtDate(selectedDate)
-    supabase
-      .from('agendamentos')
-      .select('horario_inicio, horario_fim, quantidade')
-      .eq('recurso_id', selectedRecurso.id)
-      .eq('data', dateStr)
-      .neq('status', 'cancelado')
-      .then(({ data }) => setOcupados(data || []))
   }, [selectedDate, selectedRecurso])
 
   // ── Recalculate disponivel when slot or ocupados changes ──
@@ -127,6 +146,24 @@ export default function Agendamentos() {
     setDisponivel(selectedRecurso.quantidade_total - used)
     setQuantidade(q => q === '' ? '' : Math.min(Number(q), selectedRecurso.quantidade_total - used))
   }, [selectedSlotIdx, ocupados, selectedRecurso])
+
+  useEffect(() => {
+    if (selectedSlotIdx === null) return
+
+    const start = SLOT_STARTS[selectedSlotIdx]
+    const end = slotDuration === 2
+      ? SLOT_NEXT[selectedSlotIdx + 1]
+      : SLOT_NEXT[selectedSlotIdx]
+
+    if (overlapsBooking(ocupados, start, end)) {
+      setSelectedSlotIdx(null)
+      setSlotDuration(1)
+      setQuantidade('')
+      setShowModal(false)
+      setSubmitError('O horário selecionado acabou de ser reservado. Escolha outro horário.')
+      if (step === 3) setStep(2)
+    }
+  }, [ocupados, selectedSlotIdx, slotDuration, step])
 
   // ─── Calendar helpers ────────────────────────────────────
   function buildCalendar() {
@@ -172,11 +209,13 @@ export default function Agendamentos() {
   function isSlotOcupado(idx) {
     const start = SLOT_STARTS[idx]
     const end = SLOT_NEXT[idx]
-    return ocupados.some(o => o.horario_inicio < end && o.horario_fim > start)
+    const dateStr = selectedDate ? fmtDate(selectedDate) : null
+    return overlapsBooking(ocupados, start, end) || isPastSlot(dateStr, start)
   }
 
   function handleSlotClick(idx) {
     if (isSlotOcupado(idx)) return
+    setSubmitError('')
     if (selectedSlotIdx === null) {
       setSelectedSlotIdx(idx)
       setSlotDuration(1)
@@ -244,6 +283,13 @@ export default function Agendamentos() {
     const horario_inicio = SLOT_STARTS[selectedSlotIdx]
     const cancel_token = crypto.randomUUID()
 
+    const latestBookings = await fetchOcupados()
+    if (overlapsBooking(latestBookings, horario_inicio, horario_fim)) {
+      setSubmitError('Este horário acabou de ser reservado. Escolha outro horário.')
+      setSubmitting(false)
+      return
+    }
+
     const payload = {
       usuario_id: profile?.id,
       recurso_id: selectedRecurso.id,
@@ -257,7 +303,16 @@ export default function Agendamentos() {
 
     if (isSupabaseConfigured()) {
       const { error } = await supabase.from('agendamentos').insert(payload)
-      if (error) { setSubmitError(error.message); setSubmitting(false); return }
+      if (error) {
+        setSubmitError(
+          isBookingConflictError(error)
+            ? 'Este horário acabou de ser reservado. Escolha outro horário.'
+            : error.message
+        )
+        await fetchOcupados()
+        setSubmitting(false)
+        return
+      }
 
       supabase.functions.invoke('send-booking-email', {
         body: {
@@ -488,7 +543,7 @@ export default function Agendamentos() {
             </div>
           )}
 
-          {submitError && step === 3 && (
+          {submitError && step >= 2 && (
             <div className="mt-4 flex items-center gap-2 bg-red-50 text-red-600 rounded-xl px-4 py-3 text-sm">
               <AlertTriangle className="w-4 h-4" /> {submitError}
             </div>

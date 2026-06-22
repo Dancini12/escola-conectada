@@ -2,6 +2,12 @@ import { useState, useEffect, useCallback } from 'react'
 import { Tablet, Laptop, Check, AlertTriangle, RefreshCw, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import {
+  fetchOccupiedBookings,
+  isBookingConflictError,
+  isPastSlot,
+  overlapsBooking,
+} from '../lib/bookingAvailability'
 import { useNavigate } from 'react-router-dom'
 
 const SLOT_STARTS = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00']
@@ -86,27 +92,58 @@ export default function Reservar() {
 
   useEffect(() => { fetchLive() }, [fetchLive])
 
-  // Fetch all bookings for selected date+resource once, compute per-slot availability client-side
-  useEffect(() => {
-    if (!selected || !formDate) { setOcupados([]); return }
-    if (!isSupabaseConfigured()) { setOcupados([]); return }
-    supabase
-      .from('agendamentos')
-      .select('horario_inicio, horario_fim, quantidade')
-      .eq('recurso_id', selected.id)
-      .eq('data', formDate)
-      .neq('status', 'cancelado')
-      .then(({ data }) => setOcupados(data || []))
+  const fetchOcupados = useCallback(async () => {
+    if (!selected || !formDate || !isSupabaseConfigured()) {
+      setOcupados([])
+      return []
+    }
+
+    try {
+      const bookings = await fetchOccupiedBookings(selected.id, formDate)
+      setOcupados(bookings)
+      return bookings
+    } catch {
+      setOcupados([])
+      return []
+    }
   }, [selected, formDate])
+
+  // Atualiza ao trocar a data/recurso e enquanto a grade estiver aberta.
+  useEffect(() => {
+    fetchOcupados()
+    if (!selected || !formDate || !isSupabaseConfigured()) return
+
+    const intervalId = window.setInterval(fetchOcupados, 5000)
+    const handleFocus = () => fetchOcupados()
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [fetchOcupados, selected, formDate])
+
+  useEffect(() => {
+    const selectedSlotBecameUnavailable = formSlots.some(slotStart => {
+      const idx = SLOT_STARTS.indexOf(slotStart)
+      return overlapsBooking(ocupados, slotStart, SLOT_ENDS[idx])
+    })
+
+    if (selectedSlotBecameUnavailable) {
+      setFormSlots([])
+      setFormQtd('')
+      setShowModal(false)
+      setError('O horário selecionado acabou de ser reservado. Escolha outro horário.')
+    }
+  }, [ocupados, formSlots])
 
   function getSlotDisponivel(slotStart) {
     if (!selected) return 0
     const idx = SLOT_STARTS.indexOf(slotStart)
     const end = SLOT_ENDS[idx]
-    const used = ocupados
-      .filter(o => o.horario_inicio < end && o.horario_fim > slotStart)
-      .reduce((s, o) => s + (o.quantidade || 0), 0)
-    return selected.total - used
+    return overlapsBooking(ocupados, slotStart, end) || isPastSlot(formDate, slotStart)
+      ? 0
+      : selected.total
   }
 
   // Minimum available across all selected slots
@@ -115,6 +152,7 @@ export default function Reservar() {
     : Math.min(...formSlots.map(getSlotDisponivel))
 
   function toggleSlot(start) {
+    setError('')
     setFormSlots(prev =>
       prev.includes(start) ? prev.filter(s => s !== start) : [...prev, start]
     )
@@ -122,6 +160,7 @@ export default function Reservar() {
 
   function selectRecurso(r) {
     setSelected(r)
+    setOcupados([])
     setFormSlots([])
     setFormQtd("")
     setError('')
@@ -147,6 +186,13 @@ export default function Reservar() {
     const horario_fim = SLOT_ENDS[lastIdx]
     const cancel_token = crypto.randomUUID()
 
+    const latestBookings = await fetchOcupados()
+    if (overlapsBooking(latestBookings, horario_inicio, horario_fim)) {
+      setError('Este horário acabou de ser reservado. Escolha outro horário.')
+      setSubmitting(false)
+      return
+    }
+
     const payload = {
       usuario_id: profile?.id,
       recurso_id: selected.id,
@@ -160,7 +206,16 @@ export default function Reservar() {
 
     if (isSupabaseConfigured()) {
       const { error: err } = await supabase.from('agendamentos').insert(payload)
-      if (err) { setError(err.message); setSubmitting(false); return }
+      if (err) {
+        setError(
+          isBookingConflictError(err)
+            ? 'Este horário acabou de ser reservado. Escolha outro horário.'
+            : err.message
+        )
+        await fetchOcupados()
+        setSubmitting(false)
+        return
+      }
 
       supabase.functions.invoke('send-booking-email', {
         body: {
@@ -307,10 +362,10 @@ export default function Reservar() {
                         onClick={() => !esgotado && toggleSlot(s)}
                         disabled={esgotado}
                         className={`py-2 px-2 rounded-xl text-xs font-semibold border-2 transition-all
-                          ${sel
-                            ? 'border-primary-500 bg-primary-500 text-white'
-                            : esgotado
-                              ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed line-through'
+                          ${esgotado
+                            ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed line-through'
+                            : sel
+                              ? 'border-primary-500 bg-primary-500 text-white'
                               : 'border-gray-200 text-gray-600 hover:border-primary-300 hover:bg-primary-50'
                           }`}
                       >
@@ -330,9 +385,6 @@ export default function Reservar() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Quantidade
-                    <span className="ml-2 text-xs font-normal text-green-600">
-                      {slotDisponivel} disponíveis neste horário
-                    </span>
                   </label>
                   <div className="flex items-center gap-3">
                     <button
@@ -370,6 +422,13 @@ export default function Reservar() {
                       className="flex-1 accent-primary-500"
                     />
                   </div>
+                </div>
+              )}
+
+              {error && !showModal && (
+                <div className="flex items-center gap-2 bg-red-50 text-red-600 rounded-xl px-4 py-3 text-sm">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  {error}
                 </div>
               )}
 
