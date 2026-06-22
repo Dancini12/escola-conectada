@@ -385,6 +385,9 @@ export default function Reservar() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Quantidade
+                    <span className="ml-2 text-xs font-normal text-green-600">
+                      {slotDisponivel} equipamento{slotDisponivel !== 1 ? 's' : ''} disponível{slotDisponivel !== 1 ? 'is' : ''} neste horário
+                    </span>
                   </label>
                   <div className="flex items-center gap-3">
                     <button

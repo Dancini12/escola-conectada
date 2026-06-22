@@ -5,7 +5,12 @@ export default function Header() {
         <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
           EC
         </div>
-        <span className="font-bold text-gray-800 text-lg">Escola Conectada</span>
+        <div className="leading-tight">
+          <span className="block font-bold text-gray-800 text-lg">Escola Conectada</span>
+          <span className="block text-xs font-medium text-gray-500">
+            Colégio Estadual Vandyr de Almeida
+          </span>
+        </div>
       </div>
     </header>
   )
