@@ -64,6 +64,10 @@ export default function MeusAgendamentos() {
     })
   }
 
+  function formatTime(timeStr) {
+    return timeStr?.slice(0, 5) ?? timeStr
+  }
+
   return (
     <div>
       {/* Header */}
@@ -165,7 +169,7 @@ export default function MeusAgendamentos() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5 text-gray-600">
                         <Clock className="w-3.5 h-3.5 text-gray-400" />
-                        {a.horario_inicio} – {a.horario_fim}
+                        {formatTime(a.horario_inicio)} – {formatTime(a.horario_fim)}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-600">{a.quantidade}</td>
