@@ -39,7 +39,7 @@ export default function Cancelar() {
 
     supabase
       .from('agendamentos')
-      .select('id, data, horario_inicio, horario_fim, quantidade, status, recursos(nome)')
+      .select('id, data, horario_inicio, horario_fim, quantidade, status, email, usuarios(nome), recursos(nome)')
       .eq('cancel_token', token)
       .single()
       .then(({ data, error }) => {
@@ -64,6 +64,22 @@ export default function Cancelar() {
 
     setCancelling(false)
     if (error) { setStatus('error'); return }
+
+    if (booking?.email) {
+      supabase.functions.invoke('send-booking-email', {
+        body: {
+          tipo: 'cancelamento',
+          email: booking.email,
+          nome: booking.usuarios?.nome ?? '',
+          recurso: booking.recursos?.nome,
+          data: booking.data,
+          horario_inicio: booking.horario_inicio,
+          horario_fim: booking.horario_fim,
+          quantidade: booking.quantidade,
+        },
+      })
+    }
+
     setStatus('success')
   }
 

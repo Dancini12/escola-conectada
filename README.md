@@ -39,7 +39,8 @@ Execute o SQL abaixo no **SQL Editor** do painel Supabase:
 create table public.usuarios (
   id      uuid references auth.users on delete cascade primary key,
   nome    text not null,
-  email   text not null,
+  email   text not null
+            check (email ilike '%@escola.pr.gov.br'),
   perfil  text not null default 'aluno'
             check (perfil in ('aluno', 'professor', 'admin')),
   turma   text,
@@ -68,6 +69,7 @@ create table public.agendamentos (
   finalidade      text not null,
   status          text not null default 'pendente'
                     check (status in ('pendente','confirmado','cancelado')),
+  email           text,
   created_at      timestamptz default now()
 );
 
@@ -172,7 +174,7 @@ insert into public.recursos (nome, descricao, tipo, quantidade_total) values
    'tablet', 30),
   ('Chromebooks',
    'Chromebooks leves e rápidos para tarefas escolares, produção de textos e acesso à internet.',
-   'chromebook', 25),
+   'chromebook', 35),
   ('Notebooks',
    'Notebooks para projetos avançados, programação e edição de mídia.',
    'notebook', 15),
@@ -194,6 +196,30 @@ Acesse: [http://localhost:5173](http://localhost:5173)
 ```bash
 npm run build
 ```
+
+---
+
+## E-mails de confirmação e cancelamento
+
+Ao reservar ou cancelar um equipamento, o sistema envia um e-mail automático (via [Resend](https://resend.com)) tanto para o **e-mail do professor/solicitante** quanto para o **e-mail da escola**, usando a Edge Function `send-booking-email`.
+
+### 1. Deploy da função
+
+```bash
+supabase functions deploy send-booking-email
+```
+
+### 2. Configurar variáveis de ambiente da função
+
+```bash
+supabase secrets set RESEND_API_KEY=sua-chave-resend
+supabase secrets set FROM_EMAIL=noreply@suaescola.com.br
+supabase secrets set SCHOOL_EMAIL=agendamentopadremanuel@gmail.com
+```
+
+- `RESEND_API_KEY` — chave de API do Resend usada para disparar os e-mails.
+- `FROM_EMAIL` — remetente exibido nos e-mails.
+- `SCHOOL_EMAIL` — e-mail da escola que recebe cópia de toda confirmação e cancelamento, além do e-mail do professor.
 
 ---
 

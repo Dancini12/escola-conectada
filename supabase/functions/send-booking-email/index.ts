@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
 const FROM_EMAIL = Deno.env.get('FROM_EMAIL') ?? 'noreply@escola.pr.gov.br'
+const SCHOOL_EMAIL = Deno.env.get('SCHOOL_EMAIL') ?? ''
 
 const DIAS   = ['dom.', 'seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.']
 const MESES  = ['jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.',
@@ -21,8 +22,10 @@ serve(async (req) => {
     return new Response('Method not allowed', { status: 405 })
   }
 
-  const { email, nome, recurso, data, horario_inicio, horario_fim, quantidade, cancel_url } =
+  const { email, nome, recurso, data, horario_inicio, horario_fim, quantidade, cancel_url, tipo } =
     await req.json()
+
+  const isCancelamento = tipo === 'cancelamento'
 
   // Parse date in BRT (UTC-3) — avoids DST issues
   const [ano, mes, dia] = data.split('-').map(Number)
@@ -32,8 +35,13 @@ serve(async (req) => {
   const mesLabel  = MESES[date.getUTCMonth()]
   const qtdLabel  = `${quantidade} unidade${quantidade !== 1 ? 's' : ''}`
 
+  const headerTitle = isCancelamento ? 'Agendamento cancelado' : 'Compromisso agendado'
+  const headerColor = isCancelamento ? '#e53e3e' : '#1a73e8'
+
   const subject =
-    `Compromisso agendado: ${recurso} (${nome}) — ${diaSemana} ${dia} ${mesLabel} ${ano} ${horario_inicio} – ${horario_fim} (BRT)`
+    `${headerTitle}: ${recurso} (${nome}) — ${diaSemana} ${dia} ${mesLabel} ${ano} ${horario_inicio} – ${horario_fim} (BRT)`
+
+  const recipients = [...new Set([email, SCHOOL_EMAIL].filter(Boolean))]
 
   const html = `
 <!DOCTYPE html>
@@ -46,16 +54,16 @@ serve(async (req) => {
 
         <!-- Header -->
         <tr>
-          <td style="background:#1a73e8;padding:28px 36px;">
+          <td style="background:${headerColor};padding:28px 36px;">
             <p style="margin:0;color:rgba(255,255,255,.8);font-size:13px;letter-spacing:.5px;text-transform:uppercase;">Escola Conectada</p>
-            <h1 style="margin:6px 0 0;color:#fff;font-size:22px;font-weight:700;">Compromisso agendado</h1>
+            <h1 style="margin:6px 0 0;color:#fff;font-size:22px;font-weight:700;">${headerTitle}</h1>
           </td>
         </tr>
 
         <!-- Body -->
         <tr>
           <td style="padding:32px 36px;">
-            <h2 style="margin:0 0 4px;font-size:20px;color:#1a73e8;">${recurso} (${nome})</h2>
+            <h2 style="margin:0 0 4px;font-size:20px;color:${headerColor};">${recurso} (${nome})</h2>
             <p style="margin:0 0 28px;font-size:13px;color:#888;">${email} — Organizador</p>
 
             <table width="100%" cellpadding="0" cellspacing="0">
@@ -84,7 +92,7 @@ serve(async (req) => {
         </tr>
 
         <!-- Cancel CTA -->
-        ${cancel_url ? `
+        ${cancel_url && !isCancelamento ? `
         <tr>
           <td style="padding:0 36px 28px;">
             <a href="${cancel_url}"
@@ -115,7 +123,7 @@ serve(async (req) => {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${RESEND_API_KEY}`,
     },
-    body: JSON.stringify({ from: `Escola Conectada <${FROM_EMAIL}>`, to: [email], subject, html }),
+    body: JSON.stringify({ from: `Escola Conectada <${FROM_EMAIL}>`, to: recipients, subject, html }),
   })
 
   const body = await res.json()

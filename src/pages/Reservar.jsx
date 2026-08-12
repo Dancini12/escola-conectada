@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Tablet, Laptop, Check, AlertTriangle, RefreshCw, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useAgendamentos } from '../hooks/useAgendamentos'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { isSchoolEmail, SCHOOL_EMAIL_DOMAIN } from '../lib/emailValidation'
 import {
   fetchOccupiedBookings,
   isBookingConflictError,
@@ -19,7 +21,7 @@ const RECURSOS = [
     iconBg: 'bg-blue-100', iconText: 'text-blue-600', bar: 'bg-blue-500',
   },
   {
-    id: 2, tipo: 'chromebook', nome: 'Chromebooks', total: 25, Icon: Laptop,
+    id: 2, tipo: 'chromebook', nome: 'Chromebooks', total: 35, Icon: Laptop,
     iconBg: 'bg-violet-100', iconText: 'text-violet-600', bar: 'bg-violet-500',
   },
 ]
@@ -40,12 +42,15 @@ function fmtTime(d) {
 
 export default function Reservar() {
   const { profile } = useAuth()
+  const { criarAgendamento } = useAgendamentos()
   const navigate = useNavigate()
 
-  const [live, setLive] = useState({
-    1: { emUso: 12, disponivel: 18 },
-    2: { emUso: 8,  disponivel: 17 },
-  })
+  const [live, setLive] = useState(() => Object.fromEntries(
+    RECURSOS.map(recurso => [
+      recurso.id,
+      { emUso: 0, disponivel: recurso.total },
+    ])
+  ))
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [refreshing, setRefreshing] = useState(false)
 
@@ -63,34 +68,46 @@ export default function Reservar() {
   const [modalEmail, setModalEmail]   = useState('')
   const [submitting, setSubmitting]   = useState(false)
 
-  const fetchLive = useCallback(async () => {
-    setRefreshing(true)
+  const fetchLive = useCallback(async (showRefreshing = true) => {
+    if (showRefreshing) setRefreshing(true)
     if (!isSupabaseConfigured()) {
       setLastRefresh(new Date())
-      setRefreshing(false)
+      if (showRefreshing) setRefreshing(false)
       return
     }
     const now = nowHHMM()
     const today = todayStr()
     const next = {}
     for (const r of RECURSOS) {
-      const { data } = await supabase
-        .from('agendamentos')
-        .select('quantidade')
-        .eq('recurso_id', r.id)
-        .eq('data', today)
-        .lte('horario_inicio', now)
-        .gt('horario_fim', now)
-        .neq('status', 'cancelado')
-      const emUso = (data || []).reduce((s, a) => s + (a.quantidade || 0), 0)
+      let bookings = []
+      try {
+        bookings = await fetchOccupiedBookings(r.id, today)
+      } catch {
+        bookings = []
+      }
+      const emUso = bookings
+        .filter(booking => booking.horario_inicio <= now && booking.horario_fim > now)
+        .reduce((total, booking) => total + (booking.quantidade || 0), 0)
       next[r.id] = { emUso, disponivel: r.total - emUso }
     }
     setLive(next)
     setLastRefresh(new Date())
-    setRefreshing(false)
+    if (showRefreshing) setRefreshing(false)
   }, [])
 
-  useEffect(() => { fetchLive() }, [fetchLive])
+  useEffect(() => {
+    fetchLive(false)
+    if (!isSupabaseConfigured()) return
+
+    const intervalId = window.setInterval(() => fetchLive(false), 5000)
+    const handleFocus = () => fetchLive(false)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [fetchLive])
 
   const fetchOcupados = useCallback(async () => {
     if (!selected || !formDate || !isSupabaseConfigured()) {
@@ -177,6 +194,10 @@ export default function Reservar() {
 
   async function submitBooking() {
     if (!modalNome.trim() || !modalEmail.trim()) return
+    if (!isSchoolEmail(modalEmail)) {
+      setError(`Use seu e-mail institucional (${SCHOOL_EMAIL_DOMAIN}) para agendar.`)
+      return
+    }
     setSubmitting(true)
     setError('')
 
@@ -202,9 +223,12 @@ export default function Reservar() {
       quantidade: formQtd,
       status: 'pendente',
       cancel_token,
+      email: modalEmail.trim(),
     }
 
-    if (isSupabaseConfigured()) {
+    if (!isSupabaseConfigured()) {
+      await criarAgendamento({ ...payload, recursos: { nome: selected.nome, tipo: selected.tipo } })
+    } else {
       const { error: err } = await supabase.from('agendamentos').insert(payload)
       if (err) {
         setError(
@@ -262,7 +286,7 @@ export default function Reservar() {
             <p className="text-gray-500 text-sm mt-0.5">Selecione o equipamento e preencha o formulário</p>
           </div>
           <button
-            onClick={fetchLive}
+            onClick={() => fetchLive()}
             disabled={refreshing}
             className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 mt-1 transition-colors"
             title="Atualizar disponibilidade"
@@ -489,6 +513,9 @@ export default function Reservar() {
                     placeholder="Ex: marcel@escola.pr.gov.br"
                     className="input"
                   />
+                  <p className="text-xs text-gray-400 mt-1.5">
+                    Use seu e-mail institucional, terminado em {SCHOOL_EMAIL_DOMAIN}
+                  </p>
                 </div>
               </div>
 
@@ -509,7 +536,7 @@ export default function Reservar() {
               </button>
               <button
                 onClick={submitBooking}
-                disabled={!modalNome.trim() || !modalEmail.trim() || submitting}
+                disabled={!modalNome.trim() || !modalEmail.trim() || !isSchoolEmail(modalEmail) || submitting}
                 className="flex-1 btn-primary py-2.5 text-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {submitting ? (

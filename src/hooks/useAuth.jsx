@@ -1,15 +1,16 @@
 import { useState, useEffect, createContext, useContext } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { isSchoolEmail, SCHOOL_EMAIL_DOMAIN } from '../lib/emailValidation'
 
 // Demo user for when Supabase is not configured
 const DEMO_USER = {
   id: 'demo-user-id',
-  email: 'professor@escola.edu.br',
+  email: 'professor@escola.pr.gov.br',
 }
 const DEMO_PROFILE = {
   id: 'demo-user-id',
   nome: 'Prof. Demo',
-  email: 'professor@escola.edu.br',
+  email: 'professor@escola.pr.gov.br',
   perfil: 'admin',
   turma: null,
 }
@@ -75,6 +76,9 @@ export function AuthProvider({ children }) {
   async function signUp(email, password, metadata) {
     if (!isSupabaseConfigured()) {
       return { error: { message: 'Configure o Supabase para criar contas.' } }
+    }
+    if (!isSchoolEmail(email)) {
+      return { error: { message: `Use seu e-mail institucional (${SCHOOL_EMAIL_DOMAIN}) para se cadastrar.` } }
     }
     return supabase.auth.signUp({ email, password, options: { data: metadata } })
   }

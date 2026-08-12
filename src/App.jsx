@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './hooks/useAuth'
+import { AgendamentosProvider } from './hooks/useAgendamentos'
 import Layout from './components/Layout'
 import Agendamentos from './pages/Agendamentos'
 import MeusAgendamentos from './pages/MeusAgendamentos'
@@ -32,7 +33,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <AgendamentosProvider>
+          <AppRoutes />
+        </AgendamentosProvider>
       </AuthProvider>
     </BrowserRouter>
   )

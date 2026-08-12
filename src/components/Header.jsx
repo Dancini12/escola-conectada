@@ -1,15 +1,21 @@
+import logoEscola from '../assets/logo-escola.jpeg'
+
 export default function Header() {
   return (
-    <header className="h-16 bg-white border-b border-gray-100 flex items-center px-6 sticky top-0 z-20">
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-          EC
-        </div>
-        <div className="leading-tight">
-          <span className="block font-bold text-gray-800 text-lg">Escola Conectada</span>
-          <span className="block text-xs font-medium text-gray-500">
-            Colégio Estadual Vandyr de Almeida
-          </span>
+    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-center px-6 sticky top-0 z-20">
+      <div className="flex items-center gap-3 min-w-0">
+        <img
+          src={logoEscola}
+          alt="Logo da E.E. Padre Manuel da Nóbrega"
+          className="w-12 h-12 rounded-xl object-contain flex-shrink-0 opacity-90 shadow-sm ring-1 ring-gray-200/70"
+        />
+        <div className="min-w-0 leading-none">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+            E.E. Tempo Integral
+          </p>
+          <p className="mt-1.5 text-base font-bold text-gray-800 truncate">
+            Padre Manuel da Nóbrega
+          </p>
         </div>
       </div>
     </header>

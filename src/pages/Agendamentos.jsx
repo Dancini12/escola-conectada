@@ -5,7 +5,9 @@ import {
   Check, Info, Clock, Users, Calendar, AlertTriangle, X,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useAgendamentos } from '../hooks/useAgendamentos'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { isSchoolEmail, SCHOOL_EMAIL_DOMAIN } from '../lib/emailValidation'
 import {
   fetchOccupiedBookings,
   isBookingConflictError,
@@ -16,7 +18,7 @@ import {
 // ─── Constants ───────────────────────────────────────────────
 const DEMO_RECURSOS = [
   { id: 1, nome: 'Tablets', tipo: 'tablet', quantidade_total: 30, descricao: 'Tablets Samsung para uso educacional em sala de aula' },
-  { id: 2, nome: 'Chromebooks', tipo: 'chromebook', quantidade_total: 25, descricao: 'Chromebooks para navegação e tarefas escolares' },
+  { id: 2, nome: 'Chromebooks', tipo: 'chromebook', quantidade_total: 35, descricao: 'Chromebooks para navegação e tarefas escolares' },
 ]
 
 const SLOT_STARTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00']
@@ -68,6 +70,7 @@ function StepIndicator({ current }) {
 // ─── Main Page ───────────────────────────────────────────────
 export default function Agendamentos() {
   const { profile } = useAuth()
+  const { criarAgendamento } = useAgendamentos()
   const navigate = useNavigate()
 
   const [step, setStep] = useState(1)
@@ -275,6 +278,10 @@ export default function Agendamentos() {
 
   async function handleSubmit() {
     if (!modalNome.trim() || !modalEmail.trim()) return
+    if (!isSchoolEmail(modalEmail)) {
+      setSubmitError(`Use seu e-mail institucional (${SCHOOL_EMAIL_DOMAIN}) para agendar.`)
+      return
+    }
     setSubmitting(true)
     setSubmitError('')
 
@@ -299,9 +306,16 @@ export default function Agendamentos() {
       quantidade,
       status: 'pendente',
       cancel_token,
+      email: modalEmail.trim(),
     }
 
-    if (isSupabaseConfigured()) {
+    if (!isSupabaseConfigured()) {
+      await criarAgendamento({
+        ...payload,
+        finalidade: '',
+        recursos: { nome: selectedRecurso.nome, tipo: selectedRecurso.tipo },
+      })
+    } else {
       const { error } = await supabase.from('agendamentos').insert(payload)
       if (error) {
         setSubmitError(
@@ -355,10 +369,7 @@ export default function Agendamentos() {
       {/* ── Main Wizard ── */}
       <div className="flex-1 min-w-0">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Novo Agendamento</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Reserve tablets, chromebooks e outros recursos tecnológicos da escola
-          </p>
+          <h1 className="text-2xl font-bold text-gray-800">Agendamento</h1>
         </div>
 
         <StepIndicator current={step} />
@@ -688,6 +699,9 @@ export default function Agendamentos() {
                     placeholder="Ex: marcel@escola.pr.gov.br"
                     className="input"
                   />
+                  <p className="text-xs text-gray-400 mt-1.5">
+                    Use seu e-mail institucional, terminado em {SCHOOL_EMAIL_DOMAIN}
+                  </p>
                 </div>
               </div>
 
@@ -708,7 +722,7 @@ export default function Agendamentos() {
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={!modalNome.trim() || !modalEmail.trim() || submitting}
+                disabled={!modalNome.trim() || !modalEmail.trim() || !isSchoolEmail(modalEmail) || submitting}
                 className="flex-1 btn-primary py-2.5 text-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {submitting

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, createContext, useContext } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
@@ -48,7 +48,9 @@ const DEMO_AGENDAMENTOS = [
   },
 ]
 
-export function useAgendamentos() {
+const AgendamentosContext = createContext(null)
+
+export function AgendamentosProvider({ children }) {
   const { user, profile } = useAuth()
   const [agendamentos, setAgendamentos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -92,7 +94,7 @@ export function useAgendamentos() {
         ...payload,
         id: Date.now(),
         created_at: new Date().toISOString(),
-        recursos: { nome: 'Tablets', tipo: 'tablet' },
+        recursos: payload.recursos ?? { nome: 'Tablets', tipo: 'tablet' },
         usuarios: { nome: profile?.nome },
       }
       setAgendamentos(prev => [novo, ...prev])
@@ -125,9 +127,24 @@ export function useAgendamentos() {
       .eq('id', id)
 
     if (!err) {
+      const cancelado = agendamentos.find(a => a.id === id)
       setAgendamentos(prev =>
         prev.map(a => a.id === id ? { ...a, status: 'cancelado' } : a)
       )
+      if (cancelado?.email) {
+        supabase.functions.invoke('send-booking-email', {
+          body: {
+            tipo: 'cancelamento',
+            email: cancelado.email,
+            nome: cancelado.usuarios?.nome ?? '',
+            recurso: cancelado.recursos?.nome,
+            data: cancelado.data,
+            horario_inicio: cancelado.horario_inicio,
+            horario_fim: cancelado.horario_fim,
+            quantidade: cancelado.quantidade,
+          },
+        })
+      }
     }
     return { error: err }
   }
@@ -153,13 +170,25 @@ export function useAgendamentos() {
     return { error: err }
   }
 
-  return {
-    agendamentos,
-    loading,
-    error,
-    criarAgendamento,
-    cancelarAgendamento,
-    aprovarAgendamento,
-    refetch: fetchAgendamentos,
-  }
+  return (
+    <AgendamentosContext.Provider
+      value={{
+        agendamentos,
+        loading,
+        error,
+        criarAgendamento,
+        cancelarAgendamento,
+        aprovarAgendamento,
+        refetch: fetchAgendamentos,
+      }}
+    >
+      {children}
+    </AgendamentosContext.Provider>
+  )
+}
+
+export function useAgendamentos() {
+  const ctx = useContext(AgendamentosContext)
+  if (!ctx) throw new Error('useAgendamentos must be used within AgendamentosProvider')
+  return ctx
 }
