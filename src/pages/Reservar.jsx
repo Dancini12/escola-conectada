@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Tablet, Laptop, Check, AlertTriangle, RefreshCw, X } from 'lucide-react'
+import { Laptop, Check, AlertTriangle, RefreshCw, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useAgendamentos } from '../hooks/useAgendamentos'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
@@ -16,10 +16,6 @@ const SLOT_STARTS = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15
 const SLOT_ENDS   = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00']
 
 const RECURSOS = [
-  {
-    id: 1, tipo: 'tablet', nome: 'Tablets', total: 30, Icon: Tablet,
-    iconBg: 'bg-blue-100', iconText: 'text-blue-600', bar: 'bg-blue-500',
-  },
   {
     id: 2, tipo: 'chromebook', nome: 'Chromebooks', total: 35, Icon: Laptop,
     iconBg: 'bg-violet-100', iconText: 'text-violet-600', bar: 'bg-violet-500',

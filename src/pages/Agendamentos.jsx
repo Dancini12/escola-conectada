@@ -17,7 +17,6 @@ import {
 
 // ─── Constants ───────────────────────────────────────────────
 const DEMO_RECURSOS = [
-  { id: 1, nome: 'Tablets', tipo: 'tablet', quantidade_total: 30, descricao: 'Tablets Samsung para uso educacional em sala de aula' },
   { id: 2, nome: 'Chromebooks', tipo: 'chromebook', quantidade_total: 35, descricao: 'Chromebooks para navegação e tarefas escolares' },
 ]
 
