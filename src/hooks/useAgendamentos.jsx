@@ -51,13 +51,12 @@ const DEMO_AGENDAMENTOS = [
 const AgendamentosContext = createContext(null)
 
 export function AgendamentosProvider({ children }) {
-  const { user, profile } = useAuth()
+  const { profile } = useAuth()
   const [agendamentos, setAgendamentos] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   const fetchAgendamentos = useCallback(async () => {
-    if (!user) return
     setLoading(true)
     setError(null)
 
@@ -67,22 +66,17 @@ export function AgendamentosProvider({ children }) {
       return
     }
 
-    let query = supabase
+    const query = supabase
       .from('agendamentos')
       .select('*, recursos(nome, tipo), usuarios(nome)')
       .order('data', { ascending: false })
       .order('horario_inicio', { ascending: true })
 
-    // RLS handles this, but if the user is not admin, also filter client side
-    if (profile?.perfil === 'aluno') {
-      query = query.eq('usuario_id', user.id)
-    }
-
     const { data, error: err } = await query
     if (err) setError(err.message)
     else setAgendamentos(data || [])
     setLoading(false)
-  }, [user, profile])
+  }, [])
 
   useEffect(() => {
     fetchAgendamentos()
