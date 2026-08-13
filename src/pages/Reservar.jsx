@@ -6,9 +6,9 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { isSchoolEmail, SCHOOL_EMAIL_DOMAIN } from '../lib/emailValidation'
 import {
   fetchOccupiedBookings,
+  getRemainingQuantity,
   isBookingConflictError,
   isPastSlot,
-  overlapsBooking,
 } from '../lib/bookingAvailability'
 import { useNavigate } from 'react-router-dom'
 
@@ -141,26 +141,27 @@ export default function Reservar() {
   }, [fetchOcupados, selected, formDate])
 
   useEffect(() => {
+    const precisa = Number(formQtd) || 1
     const selectedSlotBecameUnavailable = formSlots.some(slotStart => {
       const idx = SLOT_STARTS.indexOf(slotStart)
-      return overlapsBooking(ocupados, slotStart, SLOT_ENDS[idx])
+      const remaining = getRemainingQuantity(ocupados, slotStart, SLOT_ENDS[idx], selected?.total ?? 0)
+      return remaining < precisa
     })
 
     if (selectedSlotBecameUnavailable) {
       setFormSlots([])
       setFormQtd('')
       setShowModal(false)
-      setError('O horário selecionado acabou de ser reservado. Escolha outro horário.')
+      setError('Esse horário não tem mais unidades disponíveis para a quantidade selecionada. Escolha outro horário ou quantidade.')
     }
   }, [ocupados, formSlots])
 
   function getSlotDisponivel(slotStart) {
     if (!selected) return 0
+    if (isPastSlot(formDate, slotStart)) return 0
     const idx = SLOT_STARTS.indexOf(slotStart)
     const end = SLOT_ENDS[idx]
-    return overlapsBooking(ocupados, slotStart, end) || isPastSlot(formDate, slotStart)
-      ? 0
-      : selected.total
+    return getRemainingQuantity(ocupados, slotStart, end, selected.total)
   }
 
   // Minimum available across all selected slots
@@ -245,8 +246,14 @@ export default function Reservar() {
     const cancel_token = crypto.randomUUID()
 
     const latestBookings = await fetchOcupados()
-    if (overlapsBooking(latestBookings, horario_inicio, horario_fim)) {
-      setError('Este horário acabou de ser reservado. Escolha outro horário.')
+    const minRemaining = Math.min(
+      ...sorted.map(slotStart => {
+        const idx = SLOT_STARTS.indexOf(slotStart)
+        return getRemainingQuantity(latestBookings, slotStart, SLOT_ENDS[idx], selected.total)
+      })
+    )
+    if (minRemaining < Number(formQtd)) {
+      setError('Esse horário não tem mais unidades suficientes disponíveis. Escolha outro horário ou quantidade.')
       setSubmitting(false)
       return
     }

@@ -26,6 +26,16 @@ export function overlapsBooking(bookings, start, end) {
   )
 }
 
+// Quantas unidades ainda restam num horário, somando as reservas que
+// se sobrepõem (várias pessoas podem reservar o mesmo horário desde
+// que a soma não ultrapasse o total do recurso).
+export function getRemainingQuantity(bookings, start, end, total) {
+  const used = bookings
+    .filter(b => b.horario_inicio < end && b.horario_fim > start)
+    .reduce((sum, b) => sum + (b.quantidade || 0), 0)
+  return Math.max(0, total - used)
+}
+
 export function isPastSlot(date, start) {
   if (!date) return false
 

@@ -10,9 +10,9 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { isSchoolEmail, SCHOOL_EMAIL_DOMAIN } from '../lib/emailValidation'
 import {
   fetchOccupiedBookings,
+  getRemainingQuantity,
   isBookingConflictError,
   isPastSlot,
-  overlapsBooking,
 } from '../lib/bookingAvailability'
 
 // ─── Constants ───────────────────────────────────────────────
@@ -154,18 +154,22 @@ export default function Agendamentos() {
   useEffect(() => {
     if (selectedSlotIdxs.length === 0) return
 
-    const becameUnavailable = selectedSlotIdxs.some(idx =>
-      overlapsBooking(ocupados, SLOT_STARTS[idx], SLOT_NEXT[idx])
-    )
+    const precisa = Number(quantidade) || 1
+    const becameUnavailable = selectedSlotIdxs.some(idx => {
+      const remaining = getRemainingQuantity(
+        ocupados, SLOT_STARTS[idx], SLOT_NEXT[idx], selectedRecurso?.quantidade_total ?? 0
+      )
+      return remaining < precisa
+    })
 
     if (becameUnavailable) {
       setSelectedSlotIdxs([])
       setQuantidade('')
       setShowModal(false)
-      setSubmitError('O horário selecionado acabou de ser reservado. Escolha outro horário.')
+      setSubmitError('Esse horário não tem mais unidades disponíveis para a quantidade selecionada. Escolha outro horário ou quantidade.')
       if (step === 3) setStep(2)
     }
-  }, [ocupados, selectedSlotIdxs, step])
+  }, [ocupados, selectedSlotIdxs, step, quantidade, selectedRecurso])
 
   // ─── Calendar helpers ────────────────────────────────────
   function buildCalendar() {
@@ -211,7 +215,8 @@ export default function Agendamentos() {
     const start = SLOT_STARTS[idx]
     const end = SLOT_NEXT[idx]
     const dateStr = selectedDate ? fmtDate(selectedDate) : null
-    return overlapsBooking(ocupados, start, end) || isPastSlot(dateStr, start)
+    if (isPastSlot(dateStr, start)) return true
+    return getRemainingQuantity(ocupados, start, end, selectedRecurso?.quantidade_total ?? 0) <= 0
   }
 
   function handleSlotClick(idx) {
@@ -276,8 +281,13 @@ export default function Agendamentos() {
     const cancel_token = crypto.randomUUID()
 
     const latestBookings = await fetchOcupados()
-    if (overlapsBooking(latestBookings, horario_inicio, horario_fim)) {
-      setSubmitError('Este horário acabou de ser reservado. Escolha outro horário.')
+    const minRemaining = Math.min(
+      ...sortedIdxs.map(idx =>
+        getRemainingQuantity(latestBookings, SLOT_STARTS[idx], SLOT_NEXT[idx], selectedRecurso.quantidade_total)
+      )
+    )
+    if (minRemaining < Number(quantidade)) {
+      setSubmitError('Esse horário não tem mais unidades suficientes disponíveis. Escolha outro horário ou quantidade.')
       setSubmitting(false)
       return
     }
