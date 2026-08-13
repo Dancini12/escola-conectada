@@ -129,6 +129,7 @@ export function AgendamentosProvider({ children }) {
         supabase.functions.invoke('send-booking-email', {
           body: {
             tipo: 'cancelamento',
+            token: cancelado.cancel_token,
             email: cancelado.email,
             nome: cancelado.usuarios?.nome ?? '',
             recurso: cancelado.recursos?.nome,

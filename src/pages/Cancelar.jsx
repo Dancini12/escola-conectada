@@ -69,6 +69,7 @@ export default function Cancelar() {
       supabase.functions.invoke('send-booking-email', {
         body: {
           tipo: 'cancelamento',
+          token,
           email: booking.email,
           nome: booking.usuarios?.nome ?? '',
           recurso: booking.recursos?.nome,

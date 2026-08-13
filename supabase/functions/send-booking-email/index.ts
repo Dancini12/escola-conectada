@@ -3,6 +3,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
 const FROM_EMAIL = Deno.env.get('FROM_EMAIL') ?? 'noreply@escola.pr.gov.br'
 const SCHOOL_EMAIL = Deno.env.get('SCHOOL_EMAIL') ?? ''
+const SHEET_WEBHOOK_URL = Deno.env.get('SHEET_WEBHOOK_URL') ?? ''
 
 const DIAS   = ['dom.', 'seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.']
 const MESES  = ['jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.',
@@ -22,10 +23,27 @@ serve(async (req) => {
     return new Response('Method not allowed', { status: 405 })
   }
 
-  const { email, nome, recurso, data, horario_inicio, horario_fim, quantidade, cancel_url, tipo } =
+  const { email, nome, recurso, data, horario_inicio, horario_fim, quantidade, cancel_url, tipo, token } =
     await req.json()
 
   const isCancelamento = tipo === 'cancelamento'
+
+  if (SHEET_WEBHOOK_URL && token) {
+    fetch(SHEET_WEBHOOK_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: isCancelamento ? 'cancelar' : 'criar',
+        token,
+        nome,
+        email,
+        recurso,
+        data,
+        horario_inicio,
+        horario_fim,
+        quantidade,
+      }),
+    }).catch(() => {})
+  }
 
   // Parse date in BRT (UTC-3) — avoids DST issues
   const [ano, mes, dia] = data.split('-').map(Number)

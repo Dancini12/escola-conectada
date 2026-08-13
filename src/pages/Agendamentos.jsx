@@ -329,6 +329,7 @@ export default function Agendamentos() {
 
       supabase.functions.invoke('send-booking-email', {
         body: {
+          token: cancel_token,
           email: modalEmail.trim(),
           nome: modalNome.trim(),
           recurso: selectedRecurso.nome,
