@@ -185,8 +185,12 @@ export default function MeusAgendamentos() {
                           <XCircle className="w-3.5 h-3.5" />
                           Cancelar
                         </button>
-                      ) : (
+                      ) : a.status === 'cancelado' ? (
                         <span className="text-gray-300 text-xs">–</span>
+                      ) : (
+                        <span className="text-gray-400 text-xs" title="Só é possível cancelar até 1 hora antes do horário reservado">
+                          Prazo p/ cancelar encerrado
+                        </span>
                       )}
                     </td>
                   </tr>

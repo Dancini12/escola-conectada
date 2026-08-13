@@ -259,7 +259,7 @@ export default function Reservar() {
       horario_inicio,
       horario_fim,
       quantidade: formQtd,
-      status: 'pendente',
+      status: 'confirmado',
       cancel_token,
       email: profile?.email ?? '',
     }

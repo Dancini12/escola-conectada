@@ -289,7 +289,7 @@ export default function Agendamentos() {
       horario_inicio,
       horario_fim,
       quantidade,
-      status: 'pendente',
+      status: 'confirmado',
       cancel_token,
       email: profile?.email ?? '',
     }
