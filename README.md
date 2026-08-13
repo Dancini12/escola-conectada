@@ -199,9 +199,9 @@ npm run build
 
 ---
 
-## E-mails de confirmação e cancelamento
+## Registro em planilha (Google Sheets)
 
-Ao reservar ou cancelar um equipamento, o sistema envia um e-mail automático (via [Resend](https://resend.com)) tanto para o **e-mail do professor/solicitante** quanto para o **e-mail da escola**, usando a Edge Function `send-booking-email`.
+Ao reservar ou cancelar um equipamento, o sistema registra automaticamente uma linha numa Google Sheets (via um Apps Script Web App), usando a Edge Function `send-booking-email`. Criar agendamento adiciona uma linha; cancelar remove a linha correspondente (identificada pelo `cancel_token`).
 
 ### 1. Deploy da função
 
@@ -209,17 +209,15 @@ Ao reservar ou cancelar um equipamento, o sistema envia um e-mail automático (v
 supabase functions deploy send-booking-email
 ```
 
-### 2. Configurar variáveis de ambiente da função
+### 2. Configurar variável de ambiente da função
 
 ```bash
-supabase secrets set RESEND_API_KEY=sua-chave-resend
-supabase secrets set FROM_EMAIL=noreply@suaescola.com.br
-supabase secrets set SCHOOL_EMAIL=agendamentopadremanuel@gmail.com
+supabase secrets set SHEET_WEBHOOK_URL=https://script.google.com/macros/s/SEU_ID/exec
 ```
 
-- `RESEND_API_KEY` — chave de API do Resend usada para disparar os e-mails.
-- `FROM_EMAIL` — remetente exibido nos e-mails.
-- `SCHOOL_EMAIL` — e-mail da escola que recebe cópia de toda confirmação e cancelamento, além do e-mail do professor.
+- `SHEET_WEBHOOK_URL` — URL do Apps Script Web App implantado na planilha de controle de reservas.
+
+O envio de e-mail de confirmação foi desativado — o sistema só registra na planilha.
 
 ---
 

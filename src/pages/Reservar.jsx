@@ -486,7 +486,7 @@ export default function Reservar() {
 
             <div className="p-5">
               <p className="text-sm text-gray-500 mb-5">
-                Você receberá a confirmação com os detalhes e um link para cancelar caso necessário.
+                Sua reserva ficará registrada e poderá ser cancelada em "Meus Agendamentos".
               </p>
 
               <div className="space-y-4">
