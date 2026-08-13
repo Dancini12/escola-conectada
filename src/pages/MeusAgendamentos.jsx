@@ -26,9 +26,8 @@ function StatusBadge({ status }) {
 }
 
 function canCancel(agendamento) {
-  const dateTime = new Date(`${agendamento.data}T${agendamento.horario_inicio}`)
-  const cutoff = new Date(dateTime.getTime() - 60 * 60 * 1000) // 1h before
-  return new Date() < cutoff && agendamento.status !== 'cancelado'
+  const fim = new Date(`${agendamento.data}T${agendamento.horario_fim}`)
+  return new Date() < fim && agendamento.status !== 'cancelado'
 }
 
 export default function MeusAgendamentos() {
@@ -188,8 +187,8 @@ export default function MeusAgendamentos() {
                       ) : a.status === 'cancelado' ? (
                         <span className="text-gray-300 text-xs">–</span>
                       ) : (
-                        <span className="text-gray-400 text-xs" title="Só é possível cancelar até 1 hora antes do horário reservado">
-                          Prazo p/ cancelar encerrado
+                        <span className="text-gray-400 text-xs" title="Só é possível cancelar até o fim do horário reservado">
+                          Horário já encerrado
                         </span>
                       )}
                     </td>
