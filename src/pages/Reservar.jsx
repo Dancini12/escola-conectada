@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Laptop, Check, AlertTriangle, RefreshCw, X } from 'lucide-react'
+import { Laptop, Check, AlertTriangle, RefreshCw, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useAgendamentos } from '../hooks/useAgendamentos'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
@@ -12,8 +12,11 @@ import {
 } from '../lib/bookingAvailability'
 import { useNavigate } from 'react-router-dom'
 
-const SLOT_STARTS = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00']
-const SLOT_ENDS   = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00']
+const SLOT_STARTS = ['07:30','08:20','09:25','11:05','12:55','13:45','14:55','15:45']
+const SLOT_ENDS   = ['08:20','09:10','10:15','11:55','13:45','14:35','15:45','16:35']
+
+const MONTHS_PT  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+const WEEKDAYS_PT = ['D','S','T','Q','Q','S','S']
 
 const RECURSOS = [
   {
@@ -52,6 +55,7 @@ export default function Reservar() {
 
   const [selected, setSelected] = useState(null)
   const [formDate, setFormDate]   = useState(todayStr())
+  const [calMonth, setCalMonth]   = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const [formSlots, setFormSlots] = useState([]) // array of selected slot starts
   const [ocupados, setOcupados]   = useState([]) // bookings for selected date+resource
   const [formQtd, setFormQtd]     = useState('')
@@ -164,6 +168,43 @@ export default function Reservar() {
     ? (selected?.total ?? 0)
     : Math.min(...formSlots.map(getSlotDisponivel))
 
+  function buildCalendar() {
+    const y = calMonth.getFullYear(), m = calMonth.getMonth()
+    const total = new Date(y, m + 1, 0).getDate()
+    const firstWD = new Date(y, m, 1).getDay()
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const days = []
+
+    const prevTotal = new Date(y, m, 0).getDate()
+    for (let i = firstWD - 1; i >= 0; i--) {
+      days.push({ d: prevTotal - i, cur: false, dt: null })
+    }
+    for (let d = 1; d <= total; d++) {
+      const dt = new Date(y, m, d)
+      const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+      days.push({
+        d, cur: true, dt, dateStr,
+        past: dt < today,
+        isToday: dt.toDateString() === today.toDateString(),
+        isSel: formDate === dateStr,
+      })
+    }
+    while (days.length % 7 !== 0) {
+      days.push({ d: '', cur: false, dt: null })
+    }
+    return days
+  }
+
+  function prevMonth() { setCalMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1)) }
+  function nextMonth() { setCalMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1)) }
+
+  function selectDay(day) {
+    if (!day.cur || day.past) return
+    setFormDate(day.dateStr)
+    setFormSlots([])
+    setFormQtd('')
+  }
+
   function toggleSlot(start) {
     setError('')
     setFormSlots(prev =>
@@ -267,7 +308,7 @@ export default function Reservar() {
           <Check className="w-10 h-10 text-green-500" />
         </div>
         <h2 className="text-xl font-bold text-gray-800 mb-1">Agendamento enviado!</h2>
-        <p className="text-gray-500 text-sm">Confirmação enviada por e-mail. Redirecionando...</p>
+        <p className="text-gray-500 text-sm">Reserva registrada. Redirecionando...</p>
       </div>
     )
   }
@@ -348,14 +389,41 @@ export default function Reservar() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Data</label>
-                <input
-                  type="date"
-                  min={todayStr()}
-                  value={formDate}
-                  onChange={e => { setFormDate(e.target.value); setFormSlots([]); setFormQtd("") }}
-                  className="input"
-                  required
-                />
+                <div className="border-2 border-gray-200 rounded-xl p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <button type="button" onClick={prevMonth} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                      <ChevronLeft className="w-4 h-4 text-gray-500" />
+                    </button>
+                    <span className="text-sm font-semibold text-gray-700">
+                      {MONTHS_PT[calMonth.getMonth()]} {calMonth.getFullYear()}
+                    </span>
+                    <button type="button" onClick={nextMonth} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                      <ChevronRight className="w-4 h-4 text-gray-500" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {WEEKDAYS_PT.map((w, i) => (
+                      <div key={i} className="text-center text-[10px] font-semibold text-gray-400 py-1">{w}</div>
+                    ))}
+                    {buildCalendar().map((day, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => selectDay(day)}
+                        disabled={!day.cur || day.past}
+                        className={`text-center text-xs py-1.5 rounded-lg font-medium transition-all
+                          ${!day.cur ? 'text-transparent cursor-default' : ''}
+                          ${day.cur && day.past ? 'text-gray-300 cursor-not-allowed' : ''}
+                          ${day.isSel ? 'bg-primary-500 text-white shadow-sm' : ''}
+                          ${day.isToday && !day.isSel ? 'ring-1 ring-primary-400 text-primary-600 font-bold' : ''}
+                          ${day.cur && !day.past && !day.isSel ? 'hover:bg-primary-50 text-gray-700' : ''}
+                        `}
+                      >
+                        {day.d}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               <div>

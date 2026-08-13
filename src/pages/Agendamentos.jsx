@@ -20,8 +20,8 @@ const DEMO_RECURSOS = [
   { id: 2, nome: 'Chromebooks', tipo: 'chromebook', quantidade_total: 35, descricao: 'Chromebooks para navegação e tarefas escolares' },
 ]
 
-const SLOT_STARTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00']
-const SLOT_NEXT   = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00']
+const SLOT_STARTS = ['07:30', '08:20', '09:25', '11:05', '12:55', '13:45', '14:55', '15:45']
+const SLOT_NEXT   = ['08:20', '09:10', '10:15', '11:55', '13:45', '14:35', '15:45', '16:35']
 
 const MONTHS_PT  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const WEEKDAYS_PT = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
@@ -99,7 +99,7 @@ export default function Agendamentos() {
   // ── Fetch recursos on mount ──
   useEffect(() => {
     if (!isSupabaseConfigured()) return
-    supabase.from('recursos').select('*').then(({ data }) => {
+    supabase.from('recursos').select('*').eq('tipo', 'chromebook').then(({ data }) => {
       if (data?.length) {
         setRecursos(data)
         setSelectedRecurso(data[0])
@@ -463,7 +463,7 @@ export default function Agendamentos() {
                   <div className="flex items-center gap-1.5 mb-3 p-2.5 bg-amber-50 rounded-xl border border-amber-200">
                     <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
                     <span className="text-xs text-amber-700">
-                      Os agendamentos podem ter duração máxima de 2 horas. Clique em dois slots consecutivos para reservar 2h.
+                      Os horários seguem os períodos de aula. Clique em dois períodos consecutivos para reservar os dois juntos.
                     </span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
@@ -483,7 +483,7 @@ export default function Agendamentos() {
                       <span className="w-3 h-3 rounded-sm bg-primary-500 inline-block" /> Selecionado
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <span className="w-3 h-3 rounded-sm bg-primary-100 border border-primary-400 inline-block" /> 2ª hora
+                      <span className="w-3 h-3 rounded-sm bg-primary-100 border border-primary-400 inline-block" /> 2º período
                     </span>
                     <span className="flex items-center gap-1.5">
                       <span className="w-3 h-3 rounded-sm bg-gray-100 inline-block" /> Ocupado
@@ -597,7 +597,7 @@ export default function Agendamentos() {
               {[
                 { icon: Calendar, label: 'Data', value: selectedDate?.toLocaleDateString('pt-BR') ?? '–' },
                 { icon: Clock, label: 'Horário', value: summaryTime() },
-                { icon: Clock, label: 'Duração', value: slotDuration === 2 ? '2 horas' : selectedSlotIdx !== null ? '1 hora' : '–' },
+                { icon: Clock, label: 'Duração', value: slotDuration === 2 ? '2 períodos' : selectedSlotIdx !== null ? '1 período' : '–' },
                 { icon: Users, label: 'Quantidade', value: String(quantidade) },
                 { icon: null, label: 'Solicitante', value: profile?.nome ?? '–' },
               ].map(({ icon: Icon, label, value }) => (
@@ -643,7 +643,7 @@ export default function Agendamentos() {
             </div>
             <ul className="space-y-2">
               {[
-                'Duração máxima de 2 horas por agendamento',
+'Horários seguem os períodos de aula da escola',
                 'Cancelamento disponível até 1 hora antes do uso',
                 'Cuide dos equipamentos e devolva no prazo combinado',
               ].map((tip, i) => (
