@@ -67,11 +67,7 @@ export default function Login() {
       />
 
       <div className="relative w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden">
-            <img src={logoEscola} alt="Logo da escola" className="w-full h-full object-cover" />
-          </div>
           <h1 className="text-3xl font-bold text-gray-800">Escola Conectada</h1>
           <p className="text-gray-500 mt-1 text-sm">
             E.E. Padre Manuel da Nóbrega — Agendamento de Chromebooks
