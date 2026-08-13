@@ -3,6 +3,7 @@ import { useNavigate, Navigate } from 'react-router-dom'
 import { Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { isSupabaseConfigured } from '../lib/supabase'
+import { isSchoolEmail, SCHOOL_EMAIL_DOMAIN } from '../lib/emailValidation'
 
 export default function Login() {
   const { user, signIn, signUp } = useAuth()
@@ -12,19 +13,23 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [nome, setNome] = useState('')
-  const [perfil, setPerfil] = useState('aluno')
-  const [turma, setTurma] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  if (user) return <Navigate to="/agendamentos" replace />
+  if (user) return <Navigate to="/reservar" replace />
 
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
     setSuccess('')
+
+    if (!isSchoolEmail(email)) {
+      setError(`Use seu e-mail institucional (${SCHOOL_EMAIL_DOMAIN}).`)
+      return
+    }
+
     setLoading(true)
 
     if (mode === 'login') {
@@ -32,10 +37,10 @@ export default function Login() {
       if (err) {
         setError('E-mail ou senha inválidos. Tente novamente.')
       } else {
-        navigate('/agendamentos')
+        navigate('/reservar')
       }
     } else {
-      const { error: err } = await signUp(email, password, { nome, perfil, turma })
+      const { error: err } = await signUp(email, password, { nome, perfil: 'professor' })
       if (err) {
         setError(err.message)
       } else {
@@ -48,7 +53,7 @@ export default function Login() {
   }
 
   function handleDemoLogin() {
-    navigate('/agendamentos')
+    navigate('/reservar')
   }
 
   return (
@@ -61,7 +66,7 @@ export default function Login() {
           </div>
           <h1 className="text-3xl font-bold text-white">Escola Conectada</h1>
           <p className="text-primary-200 mt-1 text-sm">
-            Sistema de Agendamento de Recursos Tecnológicos
+            E.E. Padre Manuel da Nóbrega — Agendamento de Chromebooks
           </p>
         </div>
 
@@ -100,43 +105,17 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome completo</label>
-                  <input
-                    type="text"
-                    value={nome}
-                    onChange={e => setNome(e.target.value)}
-                    placeholder="Seu nome completo"
-                    required
-                    className="input"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Perfil</label>
-                  <select
-                    value={perfil}
-                    onChange={e => setPerfil(e.target.value)}
-                    className="input"
-                  >
-                    <option value="aluno">Aluno</option>
-                    <option value="professor">Professor</option>
-                    <option value="admin">Administrador</option>
-                  </select>
-                </div>
-                {perfil === 'aluno' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Turma</label>
-                    <input
-                      type="text"
-                      value={turma}
-                      onChange={e => setTurma(e.target.value)}
-                      placeholder="Ex: 9º A"
-                      className="input"
-                    />
-                  </div>
-                )}
-              </>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome completo</label>
+                <input
+                  type="text"
+                  value={nome}
+                  onChange={e => setNome(e.target.value)}
+                  placeholder="Seu nome completo"
+                  required
+                  className="input"
+                />
+              </div>
             )}
 
             <div>
@@ -145,10 +124,13 @@ export default function Login() {
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="seu@email.com"
+                placeholder="seu.nome@escola.pr.gov.br"
                 required
                 className="input"
               />
+              <p className="text-xs text-gray-400 mt-1">
+                Precisa terminar em {SCHOOL_EMAIL_DOMAIN}
+              </p>
             </div>
 
             <div>
@@ -201,10 +183,6 @@ export default function Login() {
             </div>
           )}
         </div>
-
-        <p className="text-center text-primary-200 text-xs mt-6">
-          Prefeitura Municipal de Educação · Sistema Escolar Digital
-        </p>
       </div>
     </div>
   )

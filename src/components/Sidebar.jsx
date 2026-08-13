@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
-import { Calendar, List, PlusSquare } from 'lucide-react'
+import { Calendar, List, PlusSquare, LogOut } from 'lucide-react'
 import logoEscola from '../assets/logo-escola.jpeg'
+import { useAuth } from '../hooks/useAuth'
 
 const NAV_ITEMS = [
   { to: '/reservar',          icon: PlusSquare, label: 'Reservar' },
@@ -9,6 +10,8 @@ const NAV_ITEMS = [
 ]
 
 export default function Sidebar() {
+  const { profile, signOut } = useAuth()
+
   return (
     <aside className="w-[220px] flex-shrink-0 h-screen bg-white border-r border-gray-100 flex flex-col sticky top-0 overflow-y-auto">
       <div className="h-16 flex items-center gap-2.5 px-3 border-b border-gray-100 flex-shrink-0">
@@ -46,6 +49,18 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
+
+      <div className="border-t border-gray-100 px-4 py-3">
+        <p className="text-xs font-semibold text-gray-700 truncate">{profile?.nome}</p>
+        <p className="text-[11px] text-gray-400 truncate mb-2">{profile?.email}</p>
+        <button
+          onClick={signOut}
+          className="w-full flex items-center justify-center gap-1.5 text-xs text-red-500 hover:text-red-700 font-medium py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          Sair
+        </button>
+      </div>
 
       <div className="border-t border-gray-100 px-4 py-3 text-center">
         <p className="text-[10px] uppercase tracking-wide text-gray-400">Proprietário</p>

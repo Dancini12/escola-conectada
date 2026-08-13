@@ -7,7 +7,6 @@ import {
 import { useAuth } from '../hooks/useAuth'
 import { useAgendamentos } from '../hooks/useAgendamentos'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
-import { isSchoolEmail, SCHOOL_EMAIL_DOMAIN } from '../lib/emailValidation'
 import {
   fetchOccupiedBookings,
   getRemainingQuantity,
@@ -92,8 +91,6 @@ export default function Agendamentos() {
 
   // Confirmation modal
   const [showModal, setShowModal]   = useState(false)
-  const [modalNome, setModalNome]   = useState('')
-  const [modalEmail, setModalEmail] = useState('')
 
   // ── Fetch recursos on mount ──
   useEffect(() => {
@@ -260,18 +257,11 @@ export default function Agendamentos() {
       )
       return
     }
-    setModalNome(profile?.nome ?? '')
-    setModalEmail(profile?.email ?? '')
     setSubmitError('')
     setShowModal(true)
   }
 
   async function handleSubmit() {
-    if (!modalNome.trim() || !modalEmail.trim()) return
-    if (!isSchoolEmail(modalEmail)) {
-      setSubmitError(`Use seu e-mail institucional (${SCHOOL_EMAIL_DOMAIN}) para agendar.`)
-      return
-    }
     setSubmitting(true)
     setSubmitError('')
 
@@ -301,7 +291,7 @@ export default function Agendamentos() {
       quantidade,
       status: 'pendente',
       cancel_token,
-      email: modalEmail.trim(),
+      email: profile?.email ?? '',
     }
 
     if (!isSupabaseConfigured()) {
@@ -326,8 +316,8 @@ export default function Agendamentos() {
       supabase.functions.invoke('send-booking-email', {
         body: {
           token: cancel_token,
-          email: modalEmail.trim(),
-          nome: modalNome.trim(),
+          email: profile?.email ?? '',
+          nome: profile?.nome ?? '',
           recurso: selectedRecurso.nome,
           data: fmtDate(selectedDate),
           horario_inicio,
@@ -671,31 +661,10 @@ export default function Agendamentos() {
                 Sua reserva ficará registrada e poderá ser cancelada em "Meus Agendamentos".
               </p>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Seu nome</label>
-                  <input
-                    type="text"
-                    value={modalNome}
-                    onChange={e => setModalNome(e.target.value)}
-                    placeholder="Ex: Marcel Dancini"
-                    className="input"
-                    autoFocus
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Seu e-mail</label>
-                  <input
-                    type="email"
-                    value={modalEmail}
-                    onChange={e => setModalEmail(e.target.value)}
-                    placeholder="Ex: marcel@escola.pr.gov.br"
-                    className="input"
-                  />
-                  <p className="text-xs text-gray-400 mt-1.5">
-                    Use seu e-mail institucional, terminado em {SCHOOL_EMAIL_DOMAIN}
-                  </p>
-                </div>
+              <div className="bg-gray-50 rounded-xl p-4 text-sm">
+                <p className="text-gray-400 text-xs mb-1">Reservando como</p>
+                <p className="font-semibold text-gray-800">{profile?.nome}</p>
+                <p className="text-gray-500">{profile?.email}</p>
               </div>
 
               {submitError && (
@@ -715,7 +684,7 @@ export default function Agendamentos() {
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={!modalNome.trim() || !modalEmail.trim() || !isSchoolEmail(modalEmail) || submitting}
+                disabled={submitting}
                 className="flex-1 btn-primary py-2.5 text-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {submitting

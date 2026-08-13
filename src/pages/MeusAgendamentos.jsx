@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Calendar, Clock, Tablet, Laptop, Monitor, Search, PlusCircle, XCircle, AlertCircle } from 'lucide-react'
 import { useAgendamentos } from '../hooks/useAgendamentos'
-import { useAuth } from '../hooks/useAuth'
 
 function ResourceIcon({ tipo }) {
   const cls = 'w-4 h-4'
@@ -34,7 +33,6 @@ function canCancel(agendamento) {
 
 export default function MeusAgendamentos() {
   const { agendamentos, loading, cancelarAgendamento } = useAgendamentos()
-  const { isAdmin } = useAuth()
 
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('todos')
@@ -74,7 +72,7 @@ export default function MeusAgendamentos() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">
-            {isAdmin ? 'Todos os Agendamentos' : 'Meus Agendamentos'}
+            Meus Agendamentos
           </h1>
           <p className="text-gray-500 text-sm mt-1">
             {filtered.length} agendamento{filtered.length !== 1 ? 's' : ''} encontrado{filtered.length !== 1 ? 's' : ''}
@@ -138,9 +136,6 @@ export default function MeusAgendamentos() {
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Horário</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Qtd</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Finalidade</th>
-                  {isAdmin && (
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Solicitante</th>
-                  )}
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
                   <th className="text-right px-4 py-3 font-semibold text-gray-600">Ações</th>
                 </tr>
@@ -178,9 +173,6 @@ export default function MeusAgendamentos() {
                         {a.finalidade}
                       </span>
                     </td>
-                    {isAdmin && (
-                      <td className="px-4 py-3 text-gray-600">{a.usuarios?.nome ?? '–'}</td>
-                    )}
                     <td className="px-4 py-3">
                       <StatusBadge status={a.status} />
                     </td>

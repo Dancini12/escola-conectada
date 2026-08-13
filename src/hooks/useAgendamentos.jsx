@@ -51,7 +51,7 @@ const DEMO_AGENDAMENTOS = [
 const AgendamentosContext = createContext(null)
 
 export function AgendamentosProvider({ children }) {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const [agendamentos, setAgendamentos] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -66,6 +66,12 @@ export function AgendamentosProvider({ children }) {
       return
     }
 
+    if (!user) {
+      setAgendamentos([])
+      setLoading(false)
+      return
+    }
+
     const query = supabase
       .from('agendamentos')
       .select('*, recursos(nome, tipo), usuarios(nome)')
@@ -76,7 +82,7 @@ export function AgendamentosProvider({ children }) {
     if (err) setError(err.message)
     else setAgendamentos(data || [])
     setLoading(false)
-  }, [])
+  }, [user])
 
   useEffect(() => {
     fetchAgendamentos()
