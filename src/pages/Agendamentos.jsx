@@ -79,8 +79,7 @@ export default function Agendamentos() {
   // Step 2
   const [calDate, setCalDate] = useState(new Date())  // month being displayed
   const [selectedDate, setSelectedDate] = useState(null)
-  const [selectedSlotIdx, setSelectedSlotIdx] = useState(null) // index in SLOT_STARTS (start)
-  const [slotDuration, setSlotDuration] = useState(1) // 1 or 2 hours
+  const [selectedSlotIdxs, setSelectedSlotIdxs] = useState([]) // indices in SLOT_STARTS, any quantity
   const [ocupados, setOcupados] = useState([]) // [{horario_inicio, horario_fim, quantidade}]
 
   // Step 3
@@ -138,34 +137,35 @@ export default function Agendamentos() {
     }
   }, [selectedDate, selectedRecurso])
 
-  // ── Recalculate disponivel when slot or ocupados changes ──
+  // ── Recalculate disponivel when slots or ocupados changes ──
   useEffect(() => {
-    if (!selectedRecurso || selectedSlotIdx === null) return
-    const slotStart = SLOT_STARTS[selectedSlotIdx]
-    const used = ocupados
-      .filter(o => o.horario_inicio <= slotStart && o.horario_fim > slotStart)
-      .reduce((s, o) => s + (o.quantidade || 0), 0)
-    setDisponivel(selectedRecurso.quantidade_total - used)
-    setQuantidade(q => q === '' ? '' : Math.min(Number(q), selectedRecurso.quantidade_total - used))
-  }, [selectedSlotIdx, ocupados, selectedRecurso])
+    if (!selectedRecurso || selectedSlotIdxs.length === 0) return
+    const usedPerSlot = selectedSlotIdxs.map(idx => {
+      const slotStart = SLOT_STARTS[idx]
+      return ocupados
+        .filter(o => o.horario_inicio <= slotStart && o.horario_fim > slotStart)
+        .reduce((s, o) => s + (o.quantidade || 0), 0)
+    })
+    const maxUsed = Math.max(...usedPerSlot)
+    setDisponivel(selectedRecurso.quantidade_total - maxUsed)
+    setQuantidade(q => q === '' ? '' : Math.min(Number(q), selectedRecurso.quantidade_total - maxUsed))
+  }, [selectedSlotIdxs, ocupados, selectedRecurso])
 
   useEffect(() => {
-    if (selectedSlotIdx === null) return
+    if (selectedSlotIdxs.length === 0) return
 
-    const start = SLOT_STARTS[selectedSlotIdx]
-    const end = slotDuration === 2
-      ? SLOT_NEXT[selectedSlotIdx + 1]
-      : SLOT_NEXT[selectedSlotIdx]
+    const becameUnavailable = selectedSlotIdxs.some(idx =>
+      overlapsBooking(ocupados, SLOT_STARTS[idx], SLOT_NEXT[idx])
+    )
 
-    if (overlapsBooking(ocupados, start, end)) {
-      setSelectedSlotIdx(null)
-      setSlotDuration(1)
+    if (becameUnavailable) {
+      setSelectedSlotIdxs([])
       setQuantidade('')
       setShowModal(false)
       setSubmitError('O horário selecionado acabou de ser reservado. Escolha outro horário.')
       if (step === 3) setStep(2)
     }
-  }, [ocupados, selectedSlotIdx, slotDuration, step])
+  }, [ocupados, selectedSlotIdxs, step])
 
   // ─── Calendar helpers ────────────────────────────────────
   function buildCalendar() {
@@ -203,8 +203,7 @@ export default function Agendamentos() {
   function selectDay(day) {
     if (!day.cur || day.past) return
     setSelectedDate(day.dt)
-    setSelectedSlotIdx(null)
-    setSlotDuration(1)
+    setSelectedSlotIdxs([])
   }
 
   // ─── Slot helpers ───────────────────────────────────────
@@ -218,41 +217,28 @@ export default function Agendamentos() {
   function handleSlotClick(idx) {
     if (isSlotOcupado(idx)) return
     setSubmitError('')
-    if (selectedSlotIdx === null) {
-      setSelectedSlotIdx(idx)
-      setSlotDuration(1)
-    } else if (idx === selectedSlotIdx) {
-      // deselect
-      setSelectedSlotIdx(null)
-      setSlotDuration(1)
-    } else if (idx === selectedSlotIdx + 1 && slotDuration === 1 && !isSlotOcupado(idx)) {
-      // extend to 2h
-      setSlotDuration(2)
-    } else {
-      // start fresh
-      setSelectedSlotIdx(idx)
-      setSlotDuration(1)
-    }
+    setSelectedSlotIdxs(prev =>
+      prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
+    )
   }
 
   function slotClass(idx) {
     if (isSlotOcupado(idx)) return 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed line-through'
-    if (idx === selectedSlotIdx) return 'bg-primary-500 text-white border-primary-500 shadow'
-    if (slotDuration === 2 && idx === selectedSlotIdx + 1) return 'bg-primary-100 text-primary-700 border-primary-400'
+    if (selectedSlotIdxs.includes(idx)) return 'bg-primary-500 text-white border-primary-500 shadow'
     return 'bg-white text-gray-700 border-gray-200 hover:border-primary-400 hover:bg-primary-50 cursor-pointer'
   }
 
   // ─── Summary values ─────────────────────────────────────
   function summaryTime() {
-    if (selectedSlotIdx === null) return '–'
-    const end = slotDuration === 2 ? SLOT_NEXT[selectedSlotIdx + 1] : SLOT_NEXT[selectedSlotIdx]
-    return `${SLOT_STARTS[selectedSlotIdx]} – ${end ?? SLOT_NEXT[selectedSlotIdx]}`
+    if (selectedSlotIdxs.length === 0) return '–'
+    const sorted = [...selectedSlotIdxs].sort((a, b) => a - b)
+    return `${SLOT_STARTS[sorted[0]]} – ${SLOT_NEXT[sorted[sorted.length - 1]]}`
   }
 
   // ─── Validation per step ────────────────────────────────
   function canContinue() {
     if (step === 1) return !!selectedRecurso
-    if (step === 2) return !!selectedDate && selectedSlotIdx !== null
+    if (step === 2) return !!selectedDate && selectedSlotIdxs.length > 0
     if (step === 3) return quantidade !== '' && Number(quantidade) >= 1
     return false
   }
@@ -284,9 +270,9 @@ export default function Agendamentos() {
     setSubmitting(true)
     setSubmitError('')
 
-    const endIdx = selectedSlotIdx + slotDuration
-    const horario_fim = endIdx < SLOT_NEXT.length ? SLOT_NEXT[endIdx - 1] : '17:00'
-    const horario_inicio = SLOT_STARTS[selectedSlotIdx]
+    const sortedIdxs = [...selectedSlotIdxs].sort((a, b) => a - b)
+    const horario_inicio = SLOT_STARTS[sortedIdxs[0]]
+    const horario_fim = SLOT_NEXT[sortedIdxs[sortedIdxs.length - 1]]
     const cancel_token = crypto.randomUUID()
 
     const latestBookings = await fetchOcupados()
@@ -463,7 +449,7 @@ export default function Agendamentos() {
                   <div className="flex items-center gap-1.5 mb-3 p-2.5 bg-amber-50 rounded-xl border border-amber-200">
                     <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
                     <span className="text-xs text-amber-700">
-                      Os horários seguem os períodos de aula. Clique em dois períodos consecutivos para reservar os dois juntos.
+                      Os horários seguem os períodos de aula. Selecione quantos períodos quiser.
                     </span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
@@ -481,9 +467,6 @@ export default function Agendamentos() {
                   <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
                     <span className="flex items-center gap-1.5">
                       <span className="w-3 h-3 rounded-sm bg-primary-500 inline-block" /> Selecionado
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-3 h-3 rounded-sm bg-primary-100 border border-primary-400 inline-block" /> 2º período
                     </span>
                     <span className="flex items-center gap-1.5">
                       <span className="w-3 h-3 rounded-sm bg-gray-100 inline-block" /> Ocupado
@@ -597,7 +580,7 @@ export default function Agendamentos() {
               {[
                 { icon: Calendar, label: 'Data', value: selectedDate?.toLocaleDateString('pt-BR') ?? '–' },
                 { icon: Clock, label: 'Horário', value: summaryTime() },
-                { icon: Clock, label: 'Duração', value: slotDuration === 2 ? '2 períodos' : selectedSlotIdx !== null ? '1 período' : '–' },
+                { icon: Clock, label: 'Duração', value: selectedSlotIdxs.length > 0 ? `${selectedSlotIdxs.length} período${selectedSlotIdxs.length !== 1 ? 's' : ''}` : '–' },
                 { icon: Users, label: 'Quantidade', value: String(quantidade) },
                 { icon: null, label: 'Solicitante', value: profile?.nome ?? '–' },
               ].map(({ icon: Icon, label, value }) => (
