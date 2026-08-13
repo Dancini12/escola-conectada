@@ -4,6 +4,7 @@ import { Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { isSchoolEmail, SCHOOL_EMAIL_DOMAIN } from '../lib/emailValidation'
+import logoEscola from '../assets/logo-escola.jpeg'
 
 export default function Login() {
   const { user, signIn, signUp } = useAuth()
@@ -57,15 +58,22 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-500 to-primary-800 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="relative min-h-screen bg-gray-50 flex items-center justify-center p-4 overflow-hidden">
+      <img
+        src={logoEscola}
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none select-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140vmin] h-[140vmin] object-contain opacity-10"
+      />
+
+      <div className="relative w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <span className="text-2xl font-bold text-primary-500">EC</span>
+          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden">
+            <img src={logoEscola} alt="Logo da escola" className="w-full h-full object-cover" />
           </div>
-          <h1 className="text-3xl font-bold text-white">Escola Conectada</h1>
-          <p className="text-primary-200 mt-1 text-sm">
+          <h1 className="text-3xl font-bold text-gray-800">Escola Conectada</h1>
+          <p className="text-gray-500 mt-1 text-sm">
             E.E. Padre Manuel da Nóbrega — Agendamento de Chromebooks
           </p>
         </div>
