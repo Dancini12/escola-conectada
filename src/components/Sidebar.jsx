@@ -63,9 +63,8 @@ export default function Sidebar() {
       </div>
 
       <div className="border-t border-gray-100 px-4 py-3 text-center">
-        <p className="text-[10px] uppercase tracking-wide text-gray-400">Proprietário</p>
         <p className="text-xs font-semibold text-gray-600">Lace Computer</p>
-        <p className="text-[11px] text-gray-400">Marcel Dancini</p>
+        <p className="text-[11px] text-gray-400">2026</p>
       </div>
     </aside>
   )
