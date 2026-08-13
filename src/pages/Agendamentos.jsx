@@ -253,7 +253,7 @@ export default function Agendamentos() {
   function openModal() {
     if (Number(quantidade) > disponivel) {
       setSubmitError(
-        `Apenas ${disponivel} unidade${disponivel !== 1 ? 's' : ''} disponível${disponivel !== 1 ? 'is' : ''} para este horário.`
+        `Apenas ${disponivel} unidade${disponivel !== 1 ? 's' : ''} ${disponivel !== 1 ? 'disponíveis' : 'disponível'} para este horário.`
       )
       return
     }
@@ -528,7 +528,7 @@ export default function Agendamentos() {
                 <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-5 py-3">
                   <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
                   <span className="text-green-700 text-sm font-semibold">
-                    {disponivel} unidade{disponivel !== 1 ? 's' : ''} disponível{disponivel !== 1 ? 'is' : ''}
+                    {disponivel} unidade{disponivel !== 1 ? 's' : ''} {disponivel !== 1 ? 'disponíveis' : 'disponível'}
                   </span>
                   <span className="text-gray-400 text-sm">para o horário selecionado</span>
                 </div>

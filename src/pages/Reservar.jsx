@@ -58,6 +58,7 @@ export default function Reservar() {
   const [formSlots, setFormSlots] = useState([]) // array of selected slot starts
   const [ocupados, setOcupados]   = useState([]) // bookings for selected date+resource
   const [formQtd, setFormQtd]     = useState('')
+  const [qtdAviso, setQtdAviso]   = useState('')
   const [error, setError]         = useState('')
   const [success, setSuccess]     = useState(false)
 
@@ -201,10 +202,12 @@ export default function Reservar() {
     setFormDate(day.dateStr)
     setFormSlots([])
     setFormQtd('')
+    setQtdAviso('')
   }
 
   function toggleSlot(start) {
     setError('')
+    setQtdAviso('')
     setFormSlots(prev =>
       prev.includes(start) ? prev.filter(s => s !== start) : [...prev, start]
     )
@@ -215,6 +218,7 @@ export default function Reservar() {
     setOcupados([])
     setFormSlots([])
     setFormQtd("")
+    setQtdAviso('')
     setError('')
     setSuccess(false)
   }
@@ -472,7 +476,7 @@ export default function Reservar() {
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Quantidade
                     <span className="ml-2 text-xs font-normal text-green-600">
-                      {slotDisponivel} equipamento{slotDisponivel !== 1 ? 's' : ''} disponível{slotDisponivel !== 1 ? 'is' : ''} neste horário
+                      {slotDisponivel} equipamento{slotDisponivel !== 1 ? 's' : ''} {slotDisponivel !== 1 ? 'disponíveis' : 'disponível'} neste horário
                     </span>
                   </label>
                   <div className="flex items-center gap-3">
@@ -489,8 +493,14 @@ export default function Reservar() {
                       value={formQtd}
                       onChange={e => {
                         const raw = e.target.value.replace(/\D/g, '')
-                        if (raw === '') { setFormQtd(''); return }
-                        setFormQtd(Math.min(slotDisponivel, Math.max(1, Number(raw))))
+                        if (raw === '') { setFormQtd(''); setQtdAviso(''); return }
+                        const num = Number(raw)
+                        if (num > slotDisponivel) {
+                          setQtdAviso(`Só há ${slotDisponivel} equipamento${slotDisponivel !== 1 ? 's' : ''} ${slotDisponivel !== 1 ? 'disponíveis' : 'disponível'} nesse horário.`)
+                        } else {
+                          setQtdAviso('')
+                        }
+                        setFormQtd(Math.min(slotDisponivel, Math.max(1, num)))
                       }}
                       className="w-14 text-center text-2xl font-bold text-gray-800 tabular-nums border-2 border-gray-200 rounded-xl py-1.5 focus:outline-none focus:border-primary-400"
                     />
@@ -511,6 +521,9 @@ export default function Reservar() {
                       className="flex-1 accent-primary-500"
                     />
                   </div>
+                  {qtdAviso && (
+                    <p className="text-xs text-amber-600 mt-1.5">{qtdAviso}</p>
+                  )}
                 </div>
               )}
 
