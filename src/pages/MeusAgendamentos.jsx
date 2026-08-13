@@ -137,7 +137,7 @@ export default function MeusAgendamentos() {
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Qtd</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Finalidade</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-600">Ações</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600 sticky right-0 bg-gray-50 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -176,7 +176,7 @@ export default function MeusAgendamentos() {
                     <td className="px-4 py-3">
                       <StatusBadge status={a.status} />
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className={`px-4 py-3 text-right sticky right-0 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)] ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
                       {canCancel(a) ? (
                         <button
                           onClick={() => setCancelId(a.id)}
